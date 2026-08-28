@@ -1,0 +1,64 @@
+name: Main
+
+# Trigger on push to main
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      force:
+        type: string
+        default: ""
+
+# Cancel conflicting pipelines
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  # Detect which Dockerfiles were changed
+  changes:
+    runs-on: ubuntu-latest
+
+    outputs:
+      # One entry per monitored folder
+      bookworm: ${{ steps.filter.outputs.bookworm }}
+      msvc2019: ${{ steps.filter.outputs.msvc2019 }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            bookworm:
+              - 'docker/debian/bookworm/**'
+            msvc2019:
+              - 'docker/windows/msvc2019/**'
+
+  bookworm:
+    needs: changes
+    if: needs.changes.outputs.bookworm == 'true' || inputs.force == 'bookworm'
+    uses: ./.github/workflows/build-linux.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      context-path: ./docker/debian/bookworm
+      tags: ghcr.io/${{ github.repository }}/debian/bookworm:${{ github.ref_name }}
+
+  msvc2019:
+    needs: changes
+    if: needs.changes.outputs.msvc2019 == 'true' || inputs.force == 'msvc2019'
+    uses: ./.github/workflows/build-windows.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      context-path: ./docker/windows/msvc2019
+      tag: ghcr.io/${{ github.repository }}/windows/msvc2019:${{ github.ref_name }}

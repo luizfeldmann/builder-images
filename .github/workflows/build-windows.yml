@@ -1,0 +1,31 @@
+name: Build (Windows)
+
+on:
+  workflow_call:
+    inputs:
+      context-path:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+
+jobs:
+  build-and-push-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        run: docker build -t ${{ inputs.tag }} ${{ inputs.context-path }}
+
+      - name: Push
+        run: docker push ${{ inputs.tag }}
