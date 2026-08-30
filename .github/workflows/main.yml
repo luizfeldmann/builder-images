@@ -26,6 +26,7 @@ jobs:
 
     outputs:
       # One entry per monitored folder
+      alpine: ${{ steps.filter.outputs.alpine }}
       bookworm: ${{ steps.filter.outputs.bookworm }}
       msvc2019: ${{ steps.filter.outputs.msvc2019 }}
 
@@ -36,10 +37,23 @@ jobs:
         id: filter
         with:
           filters: |
+            alpine:
+              - 'docker/alpine/**'
             bookworm:
               - 'docker/debian/bookworm/**'
             msvc2019:
               - 'docker/windows/msvc2019/**'
+
+  alpine:
+    needs: changes
+    if: needs.changes.outputs.alpine == 'true' || inputs.force == 'alpine'
+    uses: ./.github/workflows/build-linux.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      context-path: ./docker/alpine
+      tags: ghcr.io/${{ github.repository }}/alpine:${{ github.ref_name }}
 
   bookworm:
     needs: changes
